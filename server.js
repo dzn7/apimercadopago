@@ -20,7 +20,7 @@ const client = new MercadoPagoConfig({ accessToken });
 const app = express();
 
 const corsOptions = {
-  origin: "https://rainbow-chimera-9ee49e.netlify.app", // Permite requisições APENAS do seu site
+  origin: "https://siteacai.onrender.com", // Permite requisições APENAS do seu site
   methods: ["GET", "POST"],
 };
 
