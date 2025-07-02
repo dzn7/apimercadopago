@@ -1,39 +1,60 @@
+// =======================================================
+// SERVIDOR DE PRODUÇÃO FINAL
+// =======================================================
+
 const express = require('express');
+const { MercadoPagoConfig, Payment } = require('mercadopago');
 const cors = require('cors');
+
+// --- CREDENCIAIS ---
+// Esta é a forma segura de usar seu token no Render.
+// Vá em "Environment" no seu serviço no Render e crie uma variável chamada MP_ACCESS_TOKEN com o seu token.
+const accessToken = process.env.MP_ACCESS_TOKEN;
+
+if (!accessToken) {
+  console.error("ERRO CRÍTICO: Variável de ambiente MP_ACCESS_TOKEN não configurada no Render.");
+}
+
+// --- CONFIGURAÇÕES ---
+const client = new MercadoPagoConfig({ accessToken });
 const app = express();
 
-const port = process.env.PORT || 3000;
-
-console.log('--- Iniciando Servidor de Diagnóstico v2 ---');
-
-// Configuração de CORS para permitir APENAS o seu site Netlify
 const corsOptions = {
-  origin: "https://rainbow-chimera-9ee49e.netlify.app",
-  methods: ["GET", "POST"], // Métodos que seu front-end utiliza
+  origin: "https://rainbow-chimera-9ee49e.netlify.app", // Permite requisições APENAS do seu site
+  methods: ["GET", "POST"],
 };
 
-// APLICA O CORS ANTES DE TODAS AS ROTAS
-// Esta única linha já cuida das requisições OPTIONS (preflight) automaticamente.
 app.use(cors(corsOptions));
+app.use(express.json());
 
-// Log para ver as requisições que passam pelo CORS
-app.use((req, res, next) => {
-  console.log(`[LOG] Requisição recebida: ${req.method} ${req.path}`);
-  next();
-});
-
-// Rota de teste POST para o nosso botão
-app.post('/create_payment', (req, res) => {
-  console.log(`✅ SUCESSO: Rota POST /create_payment alcançada!`);
-  res.status(200).json({ message: 'SUCESSO: Servidor de debug recebeu o POST.' });
-});
-
-// Rota de teste GET para a raiz
+// --- ROTAS ---
 app.get('/', (req, res) => {
-  console.log(`✅ SUCESSO: Rota GET / alcançada.`);
-  res.status(200).json({ message: 'SUCESSO: Servidor de debug está no ar.' });
+  res.send('Servidor de pagamentos Açaí em Casa está no ar.');
 });
 
-app.listen(port, () => {
-  console.log(`--- Servidor de Diagnóstico v2 rodando na porta ${port} ---`);
+app.post('/create_payment', async (req, res) => {
+  try {
+    const dadosDoPedido = req.body;
+    console.log("📥 Requisição recebida para criar pagamento:", dadosDoPedido);
+
+    const paymentInstance = new Payment(client);
+    const resultado = await paymentInstance.create({ body: dadosDoPedido });
+
+    console.log("✅ Pagamento criado com sucesso! ID:", resultado.id);
+    res.status(201).json({
+      payment_id: resultado.id,
+      qr_code_base64: resultado.point_of_interaction.transaction_data.qr_code_base64,
+      qr_code_text: resultado.point_of_interaction.transaction_data.qr_code,
+    });
+
+  } catch (error) {
+    console.error("❌ ERRO AO CRIAR PAGAMENTO:", error);
+    res.status(500).json({ error: 'Erro ao criar pagamento no Mercado Pago.' });
+  }
+});
+
+// --- INICIAR SERVIDOR ---
+const porta = process.env.PORT || 3000;
+app.listen(porta, () => {
+  console.log(`✅ Servidor de produção rodando na porta ${porta}.`);
 });
