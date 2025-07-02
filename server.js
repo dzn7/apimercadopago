@@ -4,43 +4,36 @@ const app = express();
 
 const port = process.env.PORT || 3000;
 
-console.log('--- INICIANDO SERVIDOR DE DIAGNÓSTICO CORS ---');
+console.log('--- Iniciando Servidor de Diagnóstico v2 ---');
 
-// Configuração de CORS super explícita
+// Configuração de CORS para permitir APENAS o seu site Netlify
 const corsOptions = {
   origin: "https://rainbow-chimera-9ee49e.netlify.app",
-  methods: ["POST", "GET", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
+  methods: ["GET", "POST"], // Métodos que seu front-end utiliza
 };
 
-console.log('Opções de CORS configuradas para a origem:', corsOptions.origin);
+// APLICA O CORS ANTES DE TODAS AS ROTAS
+// Esta única linha já cuida das requisições OPTIONS (preflight) automaticamente.
+app.use(cors(corsOptions));
 
-// Middleware para logar todas as requisições ANTES do CORS
+// Log para ver as requisições que passam pelo CORS
 app.use((req, res, next) => {
-  console.log(`[LOG ANTES DO CORS] Recebida requisição: ${req.method} ${req.path}`);
+  console.log(`[LOG] Requisição recebida: ${req.method} ${req.path}`);
   next();
 });
 
-// Aplica o middleware de CORS
-app.use(cors(corsOptions));
-
-// O Express pode não precisar disso, mas é uma garantia para o preflight
-app.options('*', cors(corsOptions));
-
 // Rota de teste POST para o nosso botão
 app.post('/create_payment', (req, res) => {
-  console.log(`✅ SUCESSO: A rota POST /create_payment foi alcançada!`);
+  console.log(`✅ SUCESSO: Rota POST /create_payment alcançada!`);
   res.status(200).json({ message: 'SUCESSO: Servidor de debug recebeu o POST.' });
 });
 
-// Rota de teste GET para qualquer outra coisa
-app.get('*', (req, res) => {
-  console.log(`✅ SUCESSO: Uma rota GET foi alcançada.`);
-  res.status(200).json({ message: 'SUCESSO: Servidor de debug recebeu o GET.' });
+// Rota de teste GET para a raiz
+app.get('/', (req, res) => {
+  console.log(`✅ SUCESSO: Rota GET / alcançada.`);
+  res.status(200).json({ message: 'SUCESSO: Servidor de debug está no ar.' });
 });
 
-
 app.listen(port, () => {
-  console.log(`--- SERVIDOR DE DIAGNÓSTICO RODANDO NA PORTA ${port} ---`);
+  console.log(`--- Servidor de Diagnóstico v2 rodando na porta ${port} ---`);
 });
