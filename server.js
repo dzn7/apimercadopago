@@ -1,60 +1,65 @@
 // Importa as bibliotecas necessárias
 const express = require('express');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
-const cors = require('cors'); // Importa o pacote CORS
+const cors = require('cors');
 
-// Suas credenciais
-const SEU_ACCESS_TOKEN = "APP_USR-5375163802995042-070111-81cd3fbe74f79e93ddd38b1531c31baa-268383716"; // <<<<<<< COLOQUE SEU ACCESS TOKEN REAL AQUI (ou use variáveis de ambiente no Render)
+// --- CREDENCIAIS ---
+// Substitua pela sua variável de ambiente no Render ou cole o token diretamente
+const accessToken = process.env.MP_ACCESS_TOKEN || "APP_USR-5375163802995042-070111-81cd3fbe74f79e93ddd38b1531c31baa-268383716";
 
-// Configuração do cliente do Mercado Pago
-const client = new MercadoPagoConfig({
-  accessToken: SEU_ACCESS_TOKEN,
-});
-
-// Inicialização do Express
+// --- CONFIGURAÇÃO DO EXPRESS E CORS ---
 const app = express();
 
 // =======================================================
-// A CORREÇÃO ESTÁ AQUI
+// A CORREÇÃO DEFINITIVA ESTÁ AQUI
 // =======================================================
-// Habilita o CORS para todas as origens.
-// Esta linha DEVE vir ANTES da definição das suas rotas.
-app.use(cors());
+// Configuração de CORS explícita para permitir apenas o seu site Netlify
+const corsOptions = {
+  origin: 'https://rainbow-chimera-9ee49e.netlify.app',
+  methods: ['GET', 'POST'], // Permite os métodos GET e POST
+};
+
+app.use(cors(corsOptions));
 // =======================================================
 
 // Habilita o Express para ler JSON no corpo das requisições
 app.use(express.json());
 
+// --- CONFIGURAÇÃO DO MERCADO PAGO ---
+const client = new MercadoPagoConfig({ accessToken });
+const payment = new Payment(client);
+
 // --- ROTAS DO SERVIDOR ---
 app.get('/', (req, res) => {
-  res.send('O servidor de pagamentos está funcionando e configurado com CORS!');
+  res.send('Servidor de pagamentos no ar. CORS configurado para o site Netlify.');
 });
 
-app.post('/create_payment', (req, res) => {
-  const dadosDoPedido = req.body;
-  const payment = new Payment(client);
+app.post('/create_payment', async (req, res) => {
+  try {
+    const dadosDoPedido = req.body;
+    console.log("📥 Requisição recebida:", dadosDoPedido);
 
-  console.log("📥 Requisição recebida:", dadosDoPedido);
+    const resultado = await payment.create({ body: dadosDoPedido });
 
-  payment.create({ body: dadosDoPedido })
-    .then(resposta => {
-      console.log("✅ Pagamento criado com sucesso! ID:", resposta.id);
-      const qrCodeBase64 = resposta.point_of_interaction.transaction_data.qr_code_base64;
-      const qrCodeTexto = resposta.point_of_interaction.transaction_data.qr_code;
-      res.status(201).json({
-        qr_code_base64: qrCodeBase64,
-        qr_code_text: qrCodeTexto,
-        payment_id: resposta.id
-      });
-    })
-    .catch(erro => {
-      console.error("❌ ERRO AO CRIAR PAGAMENTO:", erro);
-      res.status(500).json({ error: 'Ops, algo deu errado no servidor ao criar o pagamento.' });
+    console.log("✅ Pagamento criado com sucesso! ID:", resultado.id);
+    res.status(201).json({
+      payment_id: resultado.id,
+      qr_code_base64: resultado.point_of_interaction.transaction_data.qr_code_base64,
+      qr_code_text: resultado.point_of_interaction.transaction_data.qr_code,
     });
+
+  } catch (error) {
+    console.error("❌ ERRO DURANTE A CRIAÇÃO DO PAGAMENTO:", error);
+    const errorDetails = error.cause?.data || error.message;
+    res.status(500).json({ 
+      error: 'Erro ao criar pagamento.',
+      details: errorDetails
+    });
+  }
 });
 
-// --- Iniciar o Servidor ---
+// --- INICIAR SERVIDOR ---
 const porta = process.env.PORT || 3000;
 app.listen(porta, () => {
-  console.log(`Servidor rodando na porta ${porta}.`);
+  console.log(`✅ Servidor pronto e ouvindo na porta ${porta}.`);
 });
